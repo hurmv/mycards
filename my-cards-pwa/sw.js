@@ -1,11 +1,12 @@
 // Offline support for My Cards.
 // Bump VERSION whenever you change any file, so phones pick up the update.
-const VERSION = "my-cards-v1";
+const VERSION = "my-cards-v2";
 const CORE = ["./", "index.html", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const CDN = [
   "https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"
+  "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js",
+  "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"
 ];
 
 self.addEventListener("install", e => {
@@ -39,7 +40,7 @@ self.addEventListener("fetch", e => {
 
   // Everything else (icons, libraries, fonts): cache first, then network.
   const cacheable = url.origin === location.origin ||
-    /(^|\.)cdnjs\.cloudflare\.com$|fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
+    /(^|\.)cdnjs\.cloudflare\.com$|cdn\.jsdelivr\.net$|fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
   if (!cacheable) return;
   e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => {
     const copy = r.clone(); caches.open(VERSION).then(c => c.put(req, copy)); return r;

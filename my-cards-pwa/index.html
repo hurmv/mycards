@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 :root{
@@ -295,7 +296,7 @@ function drawCode(box,c){
 let stream=null;
 function openEditor(existing){
   const c=existing?{...existing}:{id:newId(),name:"",number:"",format:"auto",color:COLORS[5],note:"",created:Date.now()};
-  const canDetect="BarcodeDetector" in window;
+  const canDetect=("BarcodeDetector" in window)||(typeof ZXing!=="undefined"&&!!(navigator.mediaDevices||window.FileReader));
   const el=$("#editor");
   el.innerHTML=`<div class="wrap" style="padding-bottom:40px">
     <div class="bar"><button class="iconbtn" type="button" id="eCancel">Cancel</button><strong>${existing?"Edit card":"New card"}</strong><span style="width:72px"></span></div>
@@ -327,23 +328,67 @@ function openEditor(existing){
   const del=$("#eDel");
   if(del)del.onclick=()=>{if(!del.classList.contains("armed")){del.classList.add("armed");del.textContent="Delete for good?";return}removeCard(c.id);closeEditor();toast("Card deleted")};
   if(canDetect){
-    const apply=r=>{const map={ean_13:"EAN13",ean_8:"EAN8",upc_a:"UPC",code_128:"CODE128",code_39:"CODE39",itf:"ITF",qr_code:"QR"};
-      $("#fNum").value=r.rawValue;$("#fFmt").value=map[r.format]||"CODE128";upd();showMsg("Code recognized — check the number",true)};
+    const apply=r=>{$("#fNum").value=r.text;$("#fFmt").value=r.format||"CODE128";upd();showMsg("Code recognized — check the number",true)};
     $("#ePhoto").onclick=()=>$("#eFile").click();
-    $("#eFile").onchange=async ev=>{const f=ev.target.files[0];if(!f)return;
-      try{const det=new BarcodeDetector();const bmp=await createImageBitmap(f);const res=await det.detect(bmp);
-        if(res.length)apply(res[0]);else showMsg("No barcode found in the photo. Try a closer, straighter shot.")}
-      catch(e){showMsg("Couldn't read the photo — enter the number manually.")}};
+    $("#eFile").onchange=async ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;
+      showMsg("Reading the photo…",true);
+      try{
+        const img=await loadImage(f);
+        let r=null;
+        for(const rot of [0,90]){r=await detectCanvas(toCanvas(img,1600,rot));if(r)break}
+        if(r)apply(r);else showMsg("No barcode found in the photo. Try a closer, straighter shot.");
+      }catch(e){showMsg("Couldn't read the photo — enter the number manually.")}};
     $("#eCam").onclick=async()=>{
       if(stream){stopCam();return}
       const v=$("#eVideo");
-      try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
         v.srcObject=stream;v.hidden=false;await v.play();$("#eCam").textContent="Stop";
-        const det=new BarcodeDetector();
-        const tick=async()=>{if(!stream)return;try{const r=await det.detect(v);if(r.length){apply(r[0]);stopCam();return}}catch(e){}requestAnimationFrame(tick)};tick();
-      }catch(e){stopCam();showMsg("Camera isn't available here. Upload a photo of the card or enter the number manually.")}
+        showMsg("Point the camera at the barcode",true);
+        let busy=false,last=0;
+        const tick=async t=>{
+          if(!stream)return;
+          if(!busy&&t-last>220&&v.videoWidth){busy=true;last=t;
+            try{const r=await detectCanvas(toCanvas(v,960,0));if(r&&stream){apply(r);stopCam();return}}catch(e){}
+            busy=false}
+          requestAnimationFrame(tick)};
+        requestAnimationFrame(tick);
+      }catch(e){stopCam();showMsg("Camera isn't available. Allow camera access in your browser settings, or use From photo.")}
     };
   }
+}
+
+/* ---------- barcode recognition: built-in detector first, ZXing as fallback ---------- */
+const NATIVE_MAP={ean_13:"EAN13",ean_8:"EAN8",upc_a:"UPC",code_128:"CODE128",code_39:"CODE39",itf:"ITF",qr_code:"QR"};
+const ZX_MAP={EAN_13:"EAN13",EAN_8:"EAN8",UPC_A:"UPC",CODE_128:"CODE128",CODE_39:"CODE39",ITF:"ITF",QR_CODE:"QR"};
+let nativeDet=null,zxReader=null;
+function getZx(){
+  if(zxReader||typeof ZXing==="undefined")return zxReader;
+  const F=ZXing.BarcodeFormat,hints=new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.CODE_39,F.CODE_93,F.ITF,F.CODABAR,F.QR_CODE,F.DATA_MATRIX,F.PDF_417,F.AZTEC]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+  zxReader=new ZXing.MultiFormatReader();zxReader.setHints(hints);return zxReader;
+}
+async function detectCanvas(cv){
+  if("BarcodeDetector" in window){
+    try{nativeDet=nativeDet||new BarcodeDetector();const res=await nativeDet.detect(cv);
+      if(res.length)return{text:res[0].rawValue,format:NATIVE_MAP[res[0].format]||"CODE128"}}catch(e){}
+  }
+  const zx=getZx();if(!zx)return null;
+  try{
+    const bmp=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(cv)));
+    const r=zx.decode(bmp);
+    return{text:r.getText(),format:ZX_MAP[ZXing.BarcodeFormat[r.getBarcodeFormat()]]||"CODE128"};
+  }catch(e){return null}finally{try{zx.reset()}catch(e){}}
+}
+function loadImage(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const i=new Image();
+  i.onload=()=>{URL.revokeObjectURL(url);res(i)};i.onerror=()=>{URL.revokeObjectURL(url);rej()};i.src=url})}
+function toCanvas(src,maxSide,rot){
+  const w=src.videoWidth||src.naturalWidth||src.width,h=src.videoHeight||src.naturalHeight||src.height;
+  const k=Math.min(1,maxSide/Math.max(w,h)),sw=Math.round(w*k),sh=Math.round(h*k);
+  const cv=document.createElement("canvas");const ctx=cv.getContext("2d",{willReadFrequently:true});
+  if(rot===90){cv.width=sh;cv.height=sw;ctx.translate(sh,0);ctx.rotate(Math.PI/2)}else{cv.width=sw;cv.height=sh}
+  ctx.drawImage(src,0,0,sw,sh);return cv;
 }
 function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const v=$("#eVideo");if(v){v.hidden=true;v.srcObject=null}const b=$("#eCam");if(b)b.textContent="Scan with camera"}
 function showMsg(t,ok){const m=$("#eMsg");m.textContent=t;m.hidden=false;m.classList.toggle("ok",!!ok)}
