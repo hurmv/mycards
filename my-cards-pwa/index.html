@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Cards</title>
+<meta name="theme-color" content="#E8ECF2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121722" media="(prefers-color-scheme: dark)">
+<meta name="description" content="All your store loyalty cards in one place.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="My Cards">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#E8ECF2; --surface:#FFFFFF; --ink:#18202E; --muted:#5E6878; --line:#CDD4DF;
+  --accent:#2F5BEA; --accent-ink:#FFFFFF; --danger:#C2362B;
+  --card-h:clamp(172px,54vw,214px);
+  --peek:70px;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121722; --surface:#1C2331; --ink:#E9EDF4; --muted:#97A1B3; --line:#2C3547;
+    --accent:#6F8FFF; --accent-ink:#0E1320; --danger:#FF7B6E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121722; --surface:#1C2331; --ink:#E9EDF4; --muted:#97A1B3; --line:#2C3547;
+  --accent:#6F8FFF; --accent-ink:#0E1320; --danger:#FF7B6E;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:460px;margin:0 auto;padding:20px 18px 120px}
+
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 18px}
+h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05;letter-spacing:-.02em;margin:0}
+.count{color:var(--muted);font-size:14px;margin-top:6px}
+
+.search{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:22px;outline:none}
+.search:focus{border-color:var(--accent)}
+
+/* the wallet stack */
+.stack{display:flex;flex-direction:column}
+.pcard{position:relative;height:var(--card-h);border:0;border-radius:18px;padding:18px 20px;text-align:left;
+  display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;
+  box-shadow:0 -1px 0 rgba(255,255,255,.25) inset, 0 -6px 18px rgba(10,20,40,.18);
+  transition:transform .18s ease}
+.pcard + .pcard{margin-top:calc(var(--peek) - var(--card-h))}
+.pcard:hover{transform:translateY(-6px)}
+.pcard:active{transform:translateY(-2px)}
+.pcard::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 45%);pointer-events:none}
+.pcard .row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.pcard .name{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.15;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80%}
+.pcard .mono{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:15px;flex:none;background:rgba(255,255,255,.22)}
+.pcard.lighttext .mono{background:rgba(255,255,255,.2)}
+.pcard.darktext .mono{background:rgba(0,0,0,.08)}
+.pcard .num{font-variant-numeric:tabular-nums;font-weight:600;font-size:17px;letter-spacing:.06em;opacity:.9}
+.pcard .bars{position:absolute;right:20px;bottom:20px;height:26px;width:90px;opacity:.28;
+  background:repeating-linear-gradient(90deg,currentColor 0 2px,transparent 2px 4px,currentColor 4px 5px,transparent 5px 8px,currentColor 8px 11px,transparent 11px 13px)}
+.lighttext{color:#fff}
+.darktext{color:#18202E}
+
+.empty{background:var(--surface);border:1.5px dashed var(--line);border-radius:18px;padding:34px 24px;text-align:center}
+.empty h2{font-family:var(--display);font-size:19px;margin:0 0 6px}
+.empty p{color:var(--muted);margin:0 0 18px}
+
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));
+  background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:15px 26px;font-weight:700;font-size:16px;
+  box-shadow:0 10px 28px rgba(30,60,160,.35);display:flex;align-items:center;gap:8px;z-index:5}
+.btn{border:0;border-radius:12px;padding:12px 18px;font-weight:700;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--danger);border:1px solid var(--line)}
+.btn.danger.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
+
+/* overlays */
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:20;overflow-y:auto;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  animation:rise .22s ease}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.overlay{animation:none}.pcard{transition:none}}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0 16px}
+.iconbtn{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 14px;font-weight:600}
+
+.detail-card{border-radius:20px;overflow:hidden;background:#fff;color:#111;box-shadow:0 12px 34px rgba(10,20,40,.18)}
+.detail-head{padding:20px 22px 22px}
+.detail-head .name{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.15;margin:0;word-break:break-word}
+.code-area{padding:26px 18px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;background:#fff}
+.code-area svg,.code-area img{max-width:100%;height:auto;display:block}
+.code-area .qr{width:min(240px,70vw)}
+.bignum{font-variant-numeric:tabular-nums;font-size:22px;font-weight:700;letter-spacing:.08em;text-align:center;word-break:break-all;color:#111}
+.hint{font-size:13px;color:#5E6878;text-align:center}
+.note{margin-top:16px;background:var(--surface);border-radius:14px;padding:14px 16px;color:var(--ink);white-space:pre-wrap}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.actions .btn{flex:1}
+
+/* form */
+form .field{margin-bottom:16px}
+label.lbl{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.inp{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;outline:none}
+.inp:focus{border-color:var(--accent)}
+textarea.inp{min-height:76px;resize:vertical}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.sw{width:38px;height:38px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1px var(--line)}
+.sw[aria-pressed="true"]{border-color:var(--bg);box-shadow:0 0 0 2px var(--ink)}
+.preview{margin:4px 0 22px}
+.preview .pcard{pointer-events:none}
+.scanrow{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.scanrow .btn{flex:1;min-width:140px}
+.msg{font-size:14px;color:var(--danger);margin:-8px 0 14px}
+.msg.ok{color:var(--muted)}
+video{width:100%;border-radius:14px;background:#000;display:block;margin-bottom:12px}
+.formfoot{display:flex;gap:10px;margin-top:8px}
+.formfoot .btn{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:40}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="wrap" id="home">
+  <header class="top">
+    <div>
+      <h1>My cards</h1>
+      <div class="count" id="count"></div>
+    </div>
+    <button class="iconbtn" type="button" id="backupBtn">Backup</button>
+  </header>
+  <input class="search" id="search" type="search" placeholder="Find a store" aria-label="Find a store" hidden>
+  <div class="stack" id="stack"></div>
+</main>
+<button class="fab" id="addBtn" type="button"><span aria-hidden="true" style="font-size:20px;line-height:1">+</span> Add card</button>
+
+<section class="overlay" id="detail" hidden aria-label="Card"></section>
+<section class="overlay" id="editor" hidden aria-label="Card editor"></section>
+<section class="overlay" id="backup" hidden aria-label="Backup"></section>
+
+<script>
+(function(){
+const COLORS=["#E53935","#F57C00","#F9C623","#2E9E5B","#0E8C8C","#2F5BEA","#5B3CC4","#C2185B","#3E4A5C","#F2F2F2"];
+const FORMATS=[["auto","Detect automatically"],["CODE128","Code 128"],["EAN13","EAN-13"],["EAN8","EAN-8"],["UPC","UPC-A"],["CODE39","Code 39"],["ITF","ITF"],["QR","QR code"],["NONE","No barcode (number only)"]];
+const LS_KEY="loyalty-cards-v1";
+
+let cards=[];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+function lum(hex){const h=hex.replace("#","");const [r,g,b]=[0,2,4].map(i=>{let v=parseInt(h.substr(i,2),16)/255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*r+.7152*g+.0722*b}
+const textClass=c=>lum(c||"#2F5BEA")>.45?"darktext":"lighttext";
+function guessFormat(num){const d=/^\d+$/.test(num);if(d&&num.length===13)return"EAN13";if(d&&num.length===8)return"EAN8";if(d&&num.length===12)return"UPC";return"CODE128"}
+function maskNum(n){n=String(n||"");if(n.length<=6)return n;return "•••• "+n.slice(-4)}
+
+/* ---------- storage (on this device) ---------- */
+function readLocal(){try{const v=JSON.parse(localStorage.getItem(LS_KEY)||"[]");return Array.isArray(v)?v:[]}catch(e){return[]}}
+function writeLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(cards))}catch(e){toast("Couldn't save on this device")}}
+function saveCard(card){const i=cards.findIndex(c=>c.id===card.id);if(i>=0)cards[i]=card;else cards.push(card);writeLocal();render()}
+function removeCard(id){cards=cards.filter(c=>c.id!==id);writeLocal();render()}
+cards=readLocal(); render();
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
+
+/* ---------- backup ---------- */
+function openBackup(){
+  const el=$("#backup");
+  el.innerHTML=`<div class="wrap" style="padding-bottom:40px">
+    <div class="bar"><button class="iconbtn" type="button" id="bBack">← Back</button><strong>Backup</strong><span style="width:72px"></span></div>
+    <p style="margin-top:0">Your cards are stored only on this phone. Save a backup file now and then, so you can restore your cards on a new phone or after clearing the browser.</p>
+    <div class="actions" style="flex-direction:column">
+      <button class="btn" type="button" id="bExport">Save backup file</button>
+      <button class="btn ghost" type="button" id="bImport">Restore from file</button>
+      <input type="file" id="bFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="msg ok" id="bMsg" style="margin-top:16px" hidden></p>
+  </div>`;
+  el.hidden=false;document.body.style.overflow="hidden";
+  $("#bBack").onclick=closeBackup;
+  $("#bExport").onclick=exportCards;
+  $("#bImport").onclick=()=>$("#bFile").click();
+  $("#bFile").onchange=importCards;
+}
+function closeBackup(){$("#backup").hidden=true;$("#backup").innerHTML="";document.body.style.overflow=""}
+async function exportCards(){
+  if(!cards.length){toast("No cards to save yet");return}
+  const name="my-cards-"+new Date().toISOString().slice(0,10)+".json";
+  const blob=new Blob([JSON.stringify({app:"my-cards",version:1,cards},null,2)],{type:"application/json"});
+  try{
+    const file=new File([blob],name,{type:"application/json"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"My cards backup"});return}
+  }catch(e){if(e.name==="AbortError")return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Backup saved");
+}
+async function importCards(ev){
+  const f=ev.target.files[0];if(!f)return;const m=$("#bMsg");
+  try{
+    const data=JSON.parse(await f.text());const list=Array.isArray(data)?data:data.cards;
+    if(!Array.isArray(list))throw 0;
+    let added=0,updated=0;
+    list.forEach(c=>{if(!c||!c.id||!c.number)return;const i=cards.findIndex(x=>x.id===c.id);if(i>=0){cards[i]={...cards[i],...c};updated++}else{cards.push(c);added++}});
+    writeLocal();render();
+    m.textContent=`Restored: ${added} new, ${updated} updated.`;m.classList.add("ok");m.hidden=false;
+  }catch(e){m.textContent="This file isn't a My cards backup.";m.classList.remove("ok");m.hidden=false}
+  ev.target.value="";
+}
+
+/* ---------- home ---------- */
+function cardHTML(c,extra=""){
+  const color=c.color||"#2F5BEA";
+  const initial=(c.name||"?").trim().charAt(0).toUpperCase();
+  return `<button type="button" class="pcard ${textClass(color)}" style="background:${esc(color)}" data-id="${esc(c.id)}" ${extra}>
+    <div class="row"><span class="name">${esc(c.name||"Untitled")}</span><span class="mono" aria-hidden="true">${esc(initial)}</span></div>
+    <span class="num">${esc(maskNum(c.number))}</span>
+    ${c.format!=="NONE"?'<span class="bars" aria-hidden="true"></span>':""}
+  </button>`;
+}
+function render(){
+  const q=($("#search").value||"").trim().toLowerCase();
+  const sorted=[...cards].sort((a,b)=>(a.lastUsed||a.created||0)-(b.lastUsed||b.created||0));
+  const list=q?sorted.filter(c=>(c.name||"").toLowerCase().includes(q)||String(c.number||"").includes(q)):sorted;
+  $("#search").hidden=cards.length<4;
+  const n=cards.length;
+  $("#count").textContent=n?`${n} ${n===1?"card":"cards"}`:"";
+  const stack=$("#stack");
+  if(!n){
+    stack.innerHTML=`<div class="empty"><h2>Your cards will live here</h2><p>Add a store card and its number and barcode will always be ready at the checkout.</p><button class="btn" type="button" id="emptyAdd">Add your first card</button></div>`;
+    $("#emptyAdd").onclick=()=>openEditor();
+    return;
+  }
+  if(!list.length){stack.innerHTML=`<div class="empty"><p>Nothing matches “${esc(q)}”.</p></div>`;return}
+  stack.innerHTML=list.map(c=>cardHTML(c,`aria-label="Open ${esc(c.name)} card"`)).join("");
+  stack.querySelectorAll(".pcard").forEach(b=>b.onclick=()=>openDetail(b.dataset.id));
+}
+function plural(n,a,b,c){const m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;if(m10>=2&&m10<=4&&(m100<10||m100>=20))return b;return c}
+$("#search").addEventListener("input",render);
+$("#addBtn").onclick=()=>openEditor();
+$("#backupBtn").onclick=openBackup;
+
+/* ---------- detail ---------- */
+let openId=null;
+function openDetail(id){
+  const c=cards.find(x=>x.id===id);if(!c)return;
+  openId=id;
+  const color=c.color||"#2F5BEA";
+  const el=$("#detail");
+  el.innerHTML=`<div class="wrap" style="padding-bottom:40px">
+    <div class="bar"><button class="iconbtn" type="button" id="dBack">← Back</button><button class="iconbtn" type="button" id="dEdit">Edit</button></div>
+    <div class="detail-card">
+      <div class="detail-head ${textClass(color)}" style="background:${esc(color)}"><p class="name">${esc(c.name)}</p></div>
+      <div class="code-area"><div id="codeBox"></div><div class="bignum">${esc(c.number)}</div>
+      ${c.format!=="NONE"?'<div class="hint">Turn up screen brightness if the scanner can’t read the code</div>':""}</div>
+    </div>
+    ${c.note?`<div class="note">${esc(c.note)}</div>`:""}
+    <div class="actions"><button class="btn ghost" type="button" id="dCopy">Copy number</button></div>
+  </div>`;
+  el.hidden=false;document.body.style.overflow="hidden";
+  drawCode($("#codeBox"),c);
+  $("#dBack").onclick=closeDetail;
+  $("#dEdit").onclick=()=>{closeDetail();openEditor(c)};
+  $("#dCopy").onclick=async()=>{try{await navigator.clipboard.writeText(c.number);toast("Number copied")}catch(e){toast("Couldn't copy")}};
+  saveCard({...c,lastUsed:Date.now()});
+}
+function closeDetail(){openId=null;$("#detail").hidden=true;$("#detail").innerHTML="";document.body.style.overflow=""}
+
+function drawCode(box,c){
+  box.innerHTML="";
+  let fmt=c.format||"auto";if(fmt==="auto")fmt=guessFormat(c.number);
+  if(fmt==="NONE"||!c.number)return;
+  if(fmt==="QR"){
+    if(typeof qrcode!=="function"){box.textContent="";return}
+    try{const q=qrcode(0,"M");q.addData(String(c.number));q.make();box.innerHTML=q.createSvgTag({cellSize:6,margin:2,scalable:true});const s=box.querySelector("svg");if(s)s.classList.add("qr")}catch(e){}
+    return;
+  }
+  if(typeof JsBarcode!=="function")return;
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");box.appendChild(svg);
+  const opts={format:fmt,displayValue:false,margin:10,height:110,width:2.4,background:"#ffffff",lineColor:"#000000"};
+  try{JsBarcode(svg,String(c.number),opts)}catch(e){try{JsBarcode(svg,String(c.number),{...opts,format:"CODE128"})}catch(e2){box.innerHTML=""}}
+}
+
+/* ---------- editor ---------- */
+let stream=null;
+function openEditor(existing){
+  const c=existing?{...existing}:{id:newId(),name:"",number:"",format:"auto",color:COLORS[5],note:"",created:Date.now()};
+  const canDetect="BarcodeDetector" in window;
+  const el=$("#editor");
+  el.innerHTML=`<div class="wrap" style="padding-bottom:40px">
+    <div class="bar"><button class="iconbtn" type="button" id="eCancel">Cancel</button><strong>${existing?"Edit card":"New card"}</strong><span style="width:72px"></span></div>
+    <div class="preview" id="ePrev"></div>
+    ${canDetect?`<div class="scanrow"><button class="btn ghost" type="button" id="eCam">Scan with camera</button><button class="btn ghost" type="button" id="ePhoto">From photo</button></div>
+      <input type="file" id="eFile" accept="image/*" hidden><video id="eVideo" playsinline muted hidden></video>`:""}
+    <p class="msg" id="eMsg" hidden></p>
+    <form id="eForm" novalidate>
+      <div class="field"><label class="lbl" for="fName">Store</label><input class="inp" id="fName" required maxlength="60" placeholder="e.g. Corner pharmacy" value="${esc(c.name)}"></div>
+      <div class="field"><label class="lbl" for="fNum">Card number</label><input class="inp" id="fNum" required maxlength="120" inputmode="text" autocomplete="off" placeholder="Digits under the barcode" value="${esc(c.number)}"></div>
+      <div class="field"><label class="lbl" for="fFmt">Code type</label><select class="inp" id="fFmt">${FORMATS.map(([v,l])=>`<option value="${v}" ${v===c.format?"selected":""}>${l}</option>`).join("")}</select></div>
+      <div class="field"><span class="lbl">Color</span><div class="swatches" id="fColors">${COLORS.map(col=>`<button type="button" class="sw" style="background:${col}" data-c="${col}" aria-label="Color ${col}" aria-pressed="${col===c.color}"></button>`).join("")}</div></div>
+      <div class="field"><label class="lbl" for="fNote">Note</label><textarea class="inp" id="fNote" maxlength="500" placeholder="PIN, whose name it’s in, expiry date…">${esc(c.note)}</textarea></div>
+      <div class="formfoot">${existing?'<button class="btn danger" type="button" id="eDel">Delete</button>':""}<button class="btn" type="submit">Save</button></div>
+    </form>
+  </div>`;
+  el.hidden=false;document.body.style.overflow="hidden";
+  const upd=()=>{c.name=$("#fName").value.trim();c.number=$("#fNum").value.trim();c.format=$("#fFmt").value;c.note=$("#fNote").value;
+    $("#ePrev").innerHTML=cardHTML({...c,name:c.name||"Store name",number:c.number||"0000 0000"},'tabindex="-1" aria-hidden="true"')};
+  upd();
+  ["fName","fNum","fNote"].forEach(id=>$("#"+id).addEventListener("input",upd));
+  $("#fFmt").addEventListener("change",upd);
+  $("#fColors").querySelectorAll(".sw").forEach(b=>b.onclick=()=>{c.color=b.dataset.c;$("#fColors").querySelectorAll(".sw").forEach(x=>x.setAttribute("aria-pressed",x===b));upd()});
+  $("#eCancel").onclick=closeEditor;
+  $("#eForm").onsubmit=e=>{e.preventDefault();upd();
+    if(!c.name){showMsg("Enter the store name");$("#fName").focus();return}
+    if(!c.number){showMsg("Enter the card number");$("#fNum").focus();return}
+    saveCard(c);closeEditor();toast(existing?"Changes saved":"Card added")};
+  const del=$("#eDel");
+  if(del)del.onclick=()=>{if(!del.classList.contains("armed")){del.classList.add("armed");del.textContent="Delete for good?";return}removeCard(c.id);closeEditor();toast("Card deleted")};
+  if(canDetect){
+    const apply=r=>{const map={ean_13:"EAN13",ean_8:"EAN8",upc_a:"UPC",code_128:"CODE128",code_39:"CODE39",itf:"ITF",qr_code:"QR"};
+      $("#fNum").value=r.rawValue;$("#fFmt").value=map[r.format]||"CODE128";upd();showMsg("Code recognized — check the number",true)};
+    $("#ePhoto").onclick=()=>$("#eFile").click();
+    $("#eFile").onchange=async ev=>{const f=ev.target.files[0];if(!f)return;
+      try{const det=new BarcodeDetector();const bmp=await createImageBitmap(f);const res=await det.detect(bmp);
+        if(res.length)apply(res[0]);else showMsg("No barcode found in the photo. Try a closer, straighter shot.")}
+      catch(e){showMsg("Couldn't read the photo — enter the number manually.")}};
+    $("#eCam").onclick=async()=>{
+      if(stream){stopCam();return}
+      const v=$("#eVideo");
+      try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+        v.srcObject=stream;v.hidden=false;await v.play();$("#eCam").textContent="Stop";
+        const det=new BarcodeDetector();
+        const tick=async()=>{if(!stream)return;try{const r=await det.detect(v);if(r.length){apply(r[0]);stopCam();return}}catch(e){}requestAnimationFrame(tick)};tick();
+      }catch(e){stopCam();showMsg("Camera isn't available here. Upload a photo of the card or enter the number manually.")}
+    };
+  }
+}
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const v=$("#eVideo");if(v){v.hidden=true;v.srcObject=null}const b=$("#eCam");if(b)b.textContent="Scan with camera"}
+function showMsg(t,ok){const m=$("#eMsg");m.textContent=t;m.hidden=false;m.classList.toggle("ok",!!ok)}
+function closeEditor(){stopCam();$("#editor").hidden=true;$("#editor").innerHTML="";document.body.style.overflow=""}
+
+let tt;function toast(t){let el=$(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)}el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,2000)}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#backup").hidden)closeBackup();else if(!$("#editor").hidden)closeEditor();else if(!$("#detail").hidden)closeDetail()}});
+})();
+</script>
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+</script>
+</body>
+</html>
